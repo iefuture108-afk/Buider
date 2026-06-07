@@ -2,7 +2,6 @@ import streamlit as st
 from PIL import Image
 import base64
 from openai import OpenAI
-import io
 
 # -------------------------
 # CONFIG
@@ -10,7 +9,7 @@ import io
 st.set_page_config(page_title="How I Look AI 🇮🇳", layout="centered")
 
 st.title("🇮🇳 How I Look AI")
-st.subheader("Real AI Hairstyle Generator 🔥")
+st.subheader("AI Hairstyle Generator 🔥")
 
 st.info("Upload your photo → AI generates your best looks")
 
@@ -31,14 +30,6 @@ category = st.radio(
 uploaded_file = st.file_uploader("Upload your photo", type=["jpg", "jpeg", "png"])
 
 # -------------------------
-# CONVERT IMAGE
-# -------------------------
-def image_to_bytes(image):
-    buf = io.BytesIO()
-    image.save(buf, format="PNG")
-    return buf.getvalue()
-
-# -------------------------
 # AI GENERATION
 # -------------------------
 def generate_look(prompt):
@@ -49,8 +40,8 @@ def generate_look(prompt):
             size="512x512"
         )
 
-        image_base64 = response.data[0].b64_json
-        return base64.b64decode(image_base64)
+        img_base64 = response.data[0].b64_json
+        return base64.b64decode(img_base64)
 
     except Exception as e:
         st.error(f"Error: {e}")
@@ -68,31 +59,27 @@ if uploaded_file:
 
     col1, col2, col3 = st.columns(3)
 
-    # ---------------- MEN ----------------
     if "Men" in category:
         prompts = [
-            "portrait of a man with textured top haircut and fade sides, stylish beard, realistic",
-            "portrait of a man with side part hairstyle, clean professional look, realistic",
-            "portrait of a man with messy modern hairstyle, trendy beard, realistic"
+            "man with textured haircut fade sides stylish beard realistic",
+            "man with side part professional hairstyle realistic",
+            "man with messy modern hairstyle trendy beard realistic"
         ]
 
-    # ---------------- WOMEN ----------------
     elif "Women" in category:
         prompts = [
-            "portrait of a woman with layered haircut, volume hairstyle, realistic",
-            "portrait of a woman with soft curls hairstyle, elegant look, realistic",
-            "portrait of a woman with straight sleek hair, modern style, realistic"
+            "woman layered haircut volume realistic",
+            "woman soft curls hairstyle elegant realistic",
+            "woman sleek straight hair modern realistic"
         ]
 
-    # ---------------- KIDS ----------------
     else:
         prompts = [
-            "portrait of a kid with cute short hairstyle, realistic",
-            "portrait of a kid with neat school haircut, realistic",
-            "portrait of a kid with fun playful hairstyle, realistic"
+            "kid cute short hairstyle realistic",
+            "kid neat school haircut realistic",
+            "kid fun playful hairstyle realistic"
         ]
 
-    # ---------------- GENERATE ----------------
     for col, prompt in zip([col1, col2, col3], prompts):
         with col:
             with st.spinner("Generating..."):
@@ -100,7 +87,7 @@ if uploaded_file:
 
                 if result:
                     st.image(result)
-                    st.success(prompt.split(",")[0])
+                    st.success("AI Look")
                 else:
                     st.error("AI failed, try again")
 
