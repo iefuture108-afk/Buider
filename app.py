@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from PIL import Image
 import mediapipe as mp
-
+st.info("Step 1: Select category → Step 2: Upload photo → Step 3: Get your best look")
 st.set_page_config(page_title="How I Look AI 🇮🇳", layout="centered")
 
 st.title("🇮🇳 How I Look AI")
