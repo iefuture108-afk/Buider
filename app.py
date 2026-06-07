@@ -1,11 +1,10 @@
 import streamlit as st
 from PIL import Image
 import io
-import genai
-from genai import types
+import google.generativeai as genai
 
 # 1. Setup the Gemini Client using your existing Streamlit Secret
-client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 def generate_ai_look(uploaded_file, vibe, style):
     """Uses Gemini Vision to evaluate features and Gemini Image models to generate the final look."""
@@ -23,10 +22,8 @@ def generate_ai_look(uploaded_file, vibe, style):
         
         try:
             # Step 1: Analyze the face using Gemini 2.5 Flash
-            vision_response = client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=[raw_image, analysis_prompt]
-            )
+            model_vision = genai.GenerativeModel('gemini-2.5-flash')
+            vision_response = model_vision.generate_content([raw_image, analysis_prompt])
             face_description = vision_response.text
             
         except Exception as e:
@@ -43,21 +40,20 @@ def generate_ai_look(uploaded_file, vibe, style):
         
         try:
             # Step 3: Generate the image using Gemini's native image generation capability
-            image_response = client.models.generate_content(
-                model='gemini-2.5-flash-image',
+            model_image = genai.GenerativeModel('gemini-2.5-flash-image')
+            
+            # Request an image modality response explicitly
+            image_response = model_image.generate_content(
                 contents=image_prompt,
-                config=types.GenerateContentConfig(
-                    response_modalities=["IMAGE"],
-                    image_config=types.ImageConfig(
-                        aspect_ratio="1:1"
-                    )
-                )
+                generation_config={"response_modalities": ["IMAGE"]}
             )
             
             # Extract the raw generated image from response parts
-            for part in image_response.parts:
-                if part.inline_data:
-                    generated_img = part.as_image()
+            for part in image_response.candidates[0].content.parts:
+                # Check if part contains inline image data
+                if hasattr(part, 'inline_data') and part.inline_data:
+                    # Convert to PIL Image
+                    generated_img = Image.open(io.BytesIO(part.inline_data.data))
                     
                     # Convert PIL Image into raw bytes for Streamlit's download button
                     img_byte_arr = io.BytesIO()
