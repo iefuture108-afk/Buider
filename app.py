@@ -1,14 +1,18 @@
 import streamlit as st
-import numpy as np
 from PIL import Image
+import requests
+import base64
+import os
 
-# MUST BE FIRST
 st.set_page_config(page_title="How I Look AI 🇮🇳", layout="centered")
 
 st.title("🇮🇳 How I Look AI")
-st.subheader("Find your best hairstyle instantly")
+st.subheader("Real AI Hairstyle Generator 🔥")
 
-st.info("Step 1: Select category → Step 2: Upload photo → Step 3: Get your best look")
+st.info("Upload your photo → AI generates your best looks")
+
+# API KEY
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 # CATEGORY
 category = st.radio(
@@ -19,79 +23,88 @@ category = st.radio(
 
 uploaded_file = st.file_uploader("Upload your photo", type=["jpg", "jpeg", "png"])
 
-# SIMPLE OVERLAY (NO AI LIBS)
-def add_overlay(image, color):
-    img = np.array(image)
-    h, w, _ = img.shape
+# -------------------------
+# IMAGE TO BASE64
+# -------------------------
+def encode_image(image):
+    buffered = image.tobytes()
+    return base64.b64encode(buffered).decode("utf-8")
 
-    overlay = img.copy()
-    overlay[0:int(h*0.25), :] = color  # top "hair" zone
+# -------------------------
+# AI GENERATION
+# -------------------------
+def generate_look(image, prompt):
+    buffered = base64.b64encode(image.tobytes()).decode()
 
-    blended = (0.6 * img + 0.4 * overlay).astype(np.uint8)
-    return blended
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json"
+    }
 
+    payload = {
+        "model": "gpt-image-1",
+        "prompt": prompt,
+        "size": "512x512"
+    }
+
+    response = requests.post(
+        "https://api.openai.com/v1/images/edits",
+        headers=headers,
+        json=payload
+    )
+
+    if response.status_code == 200:
+        data = response.json()
+        img_base64 = data["data"][0]["b64_json"]
+        return base64.b64decode(img_base64)
+    else:
+        return None
+
+# -------------------------
 # MAIN
+# -------------------------
 if uploaded_file:
     image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="Your Photo", use_column_width=True)
 
     st.markdown("---")
-    st.header("✨ Your Top 3 Looks")
+    st.header("✨ AI Generated Looks")
 
     col1, col2, col3 = st.columns(3)
 
-    # MEN
+    # PROMPTS
     if "Men" in category:
-        with col1:
-            st.image(add_overlay(image, [0, 0, 0]))
-            st.success("🔥 Textured Top + Fade")
+        prompts = [
+            "man with textured top haircut, fade sides, stylish beard",
+            "man with side part hairstyle, clean professional look",
+            "man with messy modern hairstyle, trendy beard"
+        ]
 
-        with col2:
-            st.image(add_overlay(image, [50, 50, 50]))
-            st.success("💼 Side Part")
-
-        with col3:
-            st.image(add_overlay(image, [90, 90, 90]))
-            st.success("😎 Messy Style")
-
-    # WOMEN
     elif "Women" in category:
-        with col1:
-            st.image(add_overlay(image, [120, 0, 120]))
-            st.success("✨ Layered Hair")
+        prompts = [
+            "woman with layered haircut, volume, stylish look",
+            "woman with soft curls hairstyle, elegant look",
+            "woman with straight sleek hair, modern style"
+        ]
 
-        with col2:
-            st.image(add_overlay(image, [200, 50, 50]))
-            st.success("💃 Soft Curls")
-
-        with col3:
-            st.image(add_overlay(image, [150, 100, 50]))
-            st.success("👑 Straight Sleek")
-
-    # KIDS
-    elif "Kids" in category:
-        with col1:
-            st.image(add_overlay(image, [0, 150, 200]))
-            st.success("🧒 Cute Short")
-
-        with col2:
-            st.image(add_overlay(image, [100, 200, 0]))
-            st.success("🎒 School Style")
-
-        with col3:
-            st.image(add_overlay(image, [200, 100, 0]))
-            st.success("🎉 Fun Style")
-
-    st.markdown("---")
-
-    st.header("🧠 AI Suggestion")
-
-    if "Men" in category:
-        st.info("Best for you: Textured Top + Mid Fade + Sharp Beard")
-    elif "Women" in category:
-        st.info("Best for you: Soft Layers with Volume")
     else:
-        st.info("Best for you: Clean & comfortable style")
+        prompts = [
+            "kid with cute short hairstyle",
+            "kid with school neat haircut",
+            "kid with fun playful hairstyle"
+        ]
+
+    # GENERATE
+    for col, prompt in zip([col1, col2, col3], prompts):
+        with col:
+            with st.spinner("Generating..."):
+                result = generate_look(image, prompt)
+
+                if result:
+                    st.image(result)
+                    st.success(prompt.split(",")[0])
+                else:
+                    st.error("AI failed, try again")
 
 else:
-    st.warning("Upload your photo to generate looks")
+    st.warning("Upload your photo to generate AI looks")
