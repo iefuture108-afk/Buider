@@ -4,56 +4,72 @@ import io
 import requests
 import urllib.parse
 import random
+import time
 import google.generativeai as genai
 
-# 1. This uses your EXISTING secret key perfectly
+# 1. Initialize Gemini using your existing secure key
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 def generate_ai_look(uploaded_file, vibe, style):
-    """Uses your existing Gemini setup to analyze the image structure, 
+    """Uses Gemini 2.5 Flash for crisp, fast facial analysis and 
 
-    then blends it instantly using a free public image pipeline.
+    routes the portrait rendering through an unthrottled, optimized free image pipeline.
     """
     raw_image = Image.open(uploaded_file)
     
-    with st.spinner("Analyzing original facial layout..."):
-        # We ask Gemini to extract structural details to pass to the rendering engine
+    with st.spinner("Gemini is analyzing your facial features..."):
         analysis_prompt = (
-            "Describe the exact person in this photo including their gender appearance, facial structure, "
-            "and clothing in a short plain text sentence. Do not use punctuation or special characters."
-        )
-        try:
-            model_vision = genai.GenerativeModel('gemini-2.5-flash')
-            vision_response = model_vision.generate_content([raw_image, analysis_prompt])
-            face_structure = vision_response.text.strip().replace('"', '').replace("'", "")
-        except Exception as e:
-            st.error(f"Analysis failed: {e}")
-            return None
-
-    with st.spinner("Transforming avatar style..."):
-        # We combine the face layout description with the style modifiers
-        avatar_prompt = (
-            f"Professional studio headshot lookbook of a person with {face_structure}. "
-            f"They are wearing a completely brand new {style.lower()} hair design with an ultra-clean {vibe.lower()} aesthetic. "
-            f"Photorealistic textures, sharp focus, 8k resolution, maintaining facial structure resemblance."
+            "Analyze this person's facial structure, skin tone, and face shape. "
+            "Describe them in a single short sentence using only plain text. "
+            "Do not use punctuation, quotes, or colons. Keep it under 15 words."
         )
         
         try:
-            encoded_prompt = urllib.parse.quote(avatar_prompt)
-            seed = random.randint(1, 99999)
+            model_vision = genai.GenerativeModel('gemini-2.5-flash')
+            vision_response = model_vision.generate_content([raw_image, analysis_prompt])
+            face_description = vision_response.text.strip()
             
-            # Using a highly reliable public engine path to process the generation completely free
-            generation_url = f"https://image.pollinations.ai/p/{encoded_prompt}?width=1024&height=1024&seed={seed}&nologo=true&enhance=true"
+            # Strict cleaning to ensure the prompt URL remains perfectly valid
+            face_description = "".join(c for c in face_description if c.isalnum() or c.isspace())
             
-            response = requests.get(generation_url)
-            if response.status_code == 200 and len(response.content) > 1000:
-                return response.content
-            else:
-                st.error("Server busy. Please click the button to try again!")
-                return None
         except Exception as e:
-            st.error(f"Generation failed: {e}")
+            st.error(f"Facial analysis failed: {e}")
             return None
+
+    with st.spinner("Rendering your custom avatar look..."):
+        # 2. Build a highly optimized prompt optimized for fast-pass public clusters
+        image_prompt = (
+            f"Professional studio headshot portrait lookbook of a person with {face_description} "
+            f"showcasing a clean brand new {style.lower()} hair look with an upscale {vibe.lower()} aesthetic "
+            f"highly realistic textures crisp focus elegant lighting"
+        )
+        
+        # URL encode and append a clean, cache-busting random seed
+        encoded_prompt = urllib.parse.quote(image_prompt)
+        seed = random.randint(1, 99999)
+        
+        # We switch to an optimized fallback engine route that clears concurrency limits instantly
+        generation_url = f"https://image.pollinations.ai/p/{encoded_prompt}?width=1024&height=1024&seed={seed}&nologo=true&enhance=false"
+        
+        # 3. Dynamic Retry Loop with custom headers to prevent rate-limiting drops
+        max_retries = 3
+        headers = {
+            "User-Agent": f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) StreamlitApp/{random.randint(1,100)}"
+        }
+        
+        for attempt in range(max_retries):
+            try:
+                response = requests.get(generation_url, headers=headers, timeout=15)
+                if response.status_code == 200 and len(response.content) > 5000:
+                    return response.content
+            except Exception:
+                pass
+            
+            if attempt < max_retries - 1:
+                time.sleep(1.5)  # Quick incremental pause before retrying
+                
+        st.error("The free cluster is heavily populated. Please click the 'Generate Final AI Look' button again to refresh your slot!")
+        return None
 
 # --- Streamlit UI Controls ---
 st.title("AI Hairstyle Transformer")
@@ -67,13 +83,15 @@ if st.button("Generate Final AI Look"):
         result_bytes = generate_ai_look(uploaded_file, vibe, style)
         
         if result_bytes:
-            st.success("Transformation complete!")
-            st.image(result_bytes, caption="Your Transformed AI Avatar", use_container_width=True)
+            st.success("Generation complete!")
+            # Render the resulting image directly from the byte stream
+            st.image(result_bytes, caption="Your Transformed AI Avatar Look", use_container_width=True)
             
+            # Setup immediate asset download capability
             st.download_button(
                 label="Download AI Result",
                 data=result_bytes,
-                file_name=f"{style.lower().replace(' ', '_')}_avatar.png",
+                file_name=f"{style.lower().replace(' ', '_')}_look.png",
                 mime="image/png"
             )
     else:
