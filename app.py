@@ -1,11 +1,10 @@
 import streamlit as st
 from PIL import Image
 import io
-from google import genai
-from google.genai import types
+import genai
+from genai import types
 
-# 1. Setup the Gemini Client using Streamlit Secrets
-# It automatically picks up GEMINI_API_KEY from your environment/secrets
+# 1. Setup the Gemini Client using your existing Streamlit Secret
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
 def generate_ai_look(uploaded_file, vibe, style):
@@ -36,7 +35,7 @@ def generate_ai_look(uploaded_file, vibe, style):
 
     with st.spinner("Generating your new AI hairstyle..."):
         # Step 2: Build the prompt combining face details + selected styles
-        dalle_style_prompt = (
+        image_prompt = (
             f"A professional high-quality studio portrait photography of a person with these exact features: {face_description}. "
             f"They have a brand new hairstyle that is completely clean, looking '{style}' with a clear '{vibe}' vibe. "
             f"Studio lighting, cinematic lookbook aesthetic, crisp and highly realistic textures."
@@ -46,7 +45,7 @@ def generate_ai_look(uploaded_file, vibe, style):
             # Step 3: Generate the image using Gemini's native image generation capability
             image_response = client.models.generate_content(
                 model='gemini-2.5-flash-image',
-                contents=dalle_style_prompt,
+                contents=image_prompt,
                 config=types.GenerateContentConfig(
                     response_modalities=["IMAGE"],
                     image_config=types.ImageConfig(
@@ -73,7 +72,7 @@ def generate_ai_look(uploaded_file, vibe, style):
             return None
 
 # --- Streamlit UI ---
-st.title("AI Hairstyle Transformer (Gemini Edition)")
+st.title("AI Hairstyle Transformer")
 
 uploaded_file = st.file_uploader("Upload your photo", type=["jpg", "png", "jpeg"])
 vibe = st.selectbox("Pick a vibe", ["Professional", "Casual", "Edgy"])
