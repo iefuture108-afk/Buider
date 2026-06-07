@@ -76,4 +76,4 @@ if uploaded_file:
     if "Men" in category:
         with col1:
             st.image(add_overlay(face, (0, 0, 0)))
-            st.success("🔥 Textured
+            st.success("🔥 Textured Top + Fade")
