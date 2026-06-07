@@ -1,16 +1,15 @@
 import streamlit as st
 from PIL import Image
 import io
-import genai
-from genai import types
+from google import genai
+from google.genai import types
 
 # 1. Initialize the official client securely using your existing secret
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
 def generate_ai_look(uploaded_file, vibe, style):
     """Uses Gemini 2.5 Flash for crisp face analysis and Gemini 2.5 Flash Image 
-
-    for instant, native, and free image generation—bypassing busy public servers.
+    for instant, native, and free image generation.
     """
     raw_image = Image.open(uploaded_file)
     
