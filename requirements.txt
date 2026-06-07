@@ -1,5 +1,4 @@
 streamlit
 Pillow
 numpy
-google-generativeai
 requests
