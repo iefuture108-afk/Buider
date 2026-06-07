@@ -1,9 +1,12 @@
 import streamlit as st
 from PIL import Image
-import requests
 import base64
-import os
+from openai import OpenAI
+import io
 
+# -------------------------
+# CONFIG
+# -------------------------
 st.set_page_config(page_title="How I Look AI 🇮🇳", layout="centered")
 
 st.title("🇮🇳 How I Look AI")
@@ -11,10 +14,14 @@ st.subheader("Real AI Hairstyle Generator 🔥")
 
 st.info("Upload your photo → AI generates your best looks")
 
+# -------------------------
 # API KEY
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+# -------------------------
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
+# -------------------------
 # CATEGORY
+# -------------------------
 category = st.radio(
     "Select Category",
     ["Men 👨", "Women 👩", "Kids 🧒"],
@@ -24,40 +31,29 @@ category = st.radio(
 uploaded_file = st.file_uploader("Upload your photo", type=["jpg", "jpeg", "png"])
 
 # -------------------------
-# IMAGE TO BASE64
+# CONVERT IMAGE
 # -------------------------
-def encode_image(image):
-    buffered = image.tobytes()
-    return base64.b64encode(buffered).decode("utf-8")
+def image_to_bytes(image):
+    buf = io.BytesIO()
+    image.save(buf, format="PNG")
+    return buf.getvalue()
 
 # -------------------------
 # AI GENERATION
 # -------------------------
-def generate_look(image, prompt):
-    buffered = base64.b64encode(image.tobytes()).decode()
+def generate_look(prompt):
+    try:
+        response = client.images.generate(
+            model="gpt-image-1",
+            prompt=prompt,
+            size="512x512"
+        )
 
-    headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
-        "Content-Type": "application/json"
-    }
+        image_base64 = response.data[0].b64_json
+        return base64.b64decode(image_base64)
 
-    payload = {
-        "model": "gpt-image-1",
-        "prompt": prompt,
-        "size": "512x512"
-    }
-
-    response = requests.post(
-        "https://api.openai.com/v1/images/edits",
-        headers=headers,
-        json=payload
-    )
-
-    if response.status_code == 200:
-        data = response.json()
-        img_base64 = data["data"][0]["b64_json"]
-        return base64.b64decode(img_base64)
-    else:
+    except Exception as e:
+        st.error(f"Error: {e}")
         return None
 
 # -------------------------
@@ -72,33 +68,35 @@ if uploaded_file:
 
     col1, col2, col3 = st.columns(3)
 
-    # PROMPTS
+    # ---------------- MEN ----------------
     if "Men" in category:
         prompts = [
-            "man with textured top haircut, fade sides, stylish beard",
-            "man with side part hairstyle, clean professional look",
-            "man with messy modern hairstyle, trendy beard"
+            "portrait of a man with textured top haircut and fade sides, stylish beard, realistic",
+            "portrait of a man with side part hairstyle, clean professional look, realistic",
+            "portrait of a man with messy modern hairstyle, trendy beard, realistic"
         ]
 
+    # ---------------- WOMEN ----------------
     elif "Women" in category:
         prompts = [
-            "woman with layered haircut, volume, stylish look",
-            "woman with soft curls hairstyle, elegant look",
-            "woman with straight sleek hair, modern style"
+            "portrait of a woman with layered haircut, volume hairstyle, realistic",
+            "portrait of a woman with soft curls hairstyle, elegant look, realistic",
+            "portrait of a woman with straight sleek hair, modern style, realistic"
         ]
 
+    # ---------------- KIDS ----------------
     else:
         prompts = [
-            "kid with cute short hairstyle",
-            "kid with school neat haircut",
-            "kid with fun playful hairstyle"
+            "portrait of a kid with cute short hairstyle, realistic",
+            "portrait of a kid with neat school haircut, realistic",
+            "portrait of a kid with fun playful hairstyle, realistic"
         ]
 
-    # GENERATE
+    # ---------------- GENERATE ----------------
     for col, prompt in zip([col1, col2, col3], prompts):
         with col:
             with st.spinner("Generating..."):
-                result = generate_look(image, prompt)
+                result = generate_look(prompt)
 
                 if result:
                     st.image(result)
