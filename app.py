@@ -1,67 +1,57 @@
 import streamlit as st
 from PIL import Image
 import io
+import requests
+import urllib.parse
 import google.generativeai as genai
 
-# 1. Setup the Gemini Client using your existing Streamlit Secret
+# 1. Setup Gemini for the facial analysis (Free Tier handles text/vision perfectly!)
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 def generate_ai_look(uploaded_file, vibe, style):
-    """Uses Gemini Vision to evaluate features and Gemini Image models to generate the final look."""
+    """Uses Gemini for perfect face analysis, and Pollinations for free image generation."""
     
-    # Open the file as a PIL Image so the Gemini SDK can process it directly
     raw_image = Image.open(uploaded_file)
     
     with st.spinner("Gemini is analyzing your facial features..."):
         analysis_prompt = (
-            "Analyze this person's facial features, skin tone, and face shape. "
-            "Write a concise, detailed description of their physical appearance. "
-            "Ignore their current hairstyle entirely; focus strictly on their facial structure "
-            "so we can replicate their likeness accurately."
+            "Analyze this person's facial features, skin tone, gender appearance, and face shape. "
+            "Write a single sentence describing their physical facial structure. "
+            "Ignore their current hair completely."
         )
         
         try:
-            # Step 1: Analyze the face using Gemini 2.5 Flash
             model_vision = genai.GenerativeModel('gemini-2.5-flash')
             vision_response = model_vision.generate_content([raw_image, analysis_prompt])
-            face_description = vision_response.text
+            face_description = vision_response.text.strip()
             
         except Exception as e:
             st.error(f"Facial analysis failed: {e}")
             return None
 
-    with st.spinner("Generating your new AI hairstyle..."):
-        # Step 2: Build the prompt combining face details + selected styles
+    with st.spinner("Generating your new AI hairstyle (Free Tier)..."):
+        # 2. Build a highly detailed prompt for a crisp portrait look
         image_prompt = (
-            f"A professional high-quality studio portrait photography of a person with these exact features: {face_description}. "
-            f"They have a brand new hairstyle that is completely clean, looking '{style}' with a clear '{vibe}' vibe. "
-            f"Studio lighting, cinematic lookbook aesthetic, crisp and highly realistic textures."
+            f"A professional high-quality studio portrait lookbook photography of a person with these features: {face_description}. "
+            f"They have a brand new hair look that is completely clean, styled as a '{style}' with a distinct '{vibe}' aesthetic. "
+            f"Hyper-realistic textures, clean studio background, sharp facial details, 8k resolution."
         )
         
         try:
-            # Step 3: Generate the image using Gemini's native image generation capability
-            model_image = genai.GenerativeModel('gemini-2.5-flash-image')
+            # 3. Bypass Google's 429 quota using Pollinations free generation API
+            encoded_prompt = urllib.parse.quote(image_prompt)
+            # We add a random seed parameter so every single click generates a unique style
+            import random
+            seed = random.randint(1, 99999)
+            pollinations_url = f"https://image.pollinations.ai/p/{encoded_prompt}?width=1024&height=1024&seed={seed}&nologo=true"
             
-            # Request an image modality response explicitly
-            image_response = model_image.generate_content(
-                contents=image_prompt,
-                generation_config={"response_modalities": ["IMAGE"]}
-            )
-            
-            # Extract the raw generated image from response parts
-            for part in image_response.candidates[0].content.parts:
-                # Check if part contains inline image data
-                if hasattr(part, 'inline_data') and part.inline_data:
-                    # Convert to PIL Image
-                    generated_img = Image.open(io.BytesIO(part.inline_data.data))
-                    
-                    # Convert PIL Image into raw bytes for Streamlit's download button
-                    img_byte_arr = io.BytesIO()
-                    generated_img.save(img_byte_arr, format='PNG')
-                    return img_byte_arr.getvalue()
-                    
-            st.error("No image data was returned by the model.")
-            return None
+            # Fetch the generated image bytes
+            response = requests.get(pollinations_url)
+            if response.status_code == 200:
+                return response.content
+            else:
+                st.error("Failed to fetch image from the generation engine.")
+                return None
 
         except Exception as e:
             st.error(f"Image generation failed: {e}")
